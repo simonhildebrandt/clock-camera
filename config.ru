@@ -1,39 +1,39 @@
 require 'rack'
 require 'grape'
-require 'aws-sdk'
-require 'base64'
-
+require 'firebase'
 
 require 'dotenv'
 Dotenv.load
-
-
-
-Aws.config.update({
-  region: ENV['AWS_REGION'],
-  credentials: Aws::Credentials.new(ENV['AWS_ACCESS_KEY_ID'], ENV['AWS_SECRET_ACCESS_KEY']),
-})
-
-S3_BUCKET = Aws::S3::Resource.new.bucket(ENV['S3_BUCKET'])
-
 
 
 class S3Tools < Grape::API
   format :json
   prefix :s3
 
+  helpers do
+    def host
+      "#{ENV['S3_BUCKET']}.s3-#{ENV['AWS_REGION']}.amazonaws.com"
+    end
+  end
+
   get :config do
     {
-      endpoint: "#{ENV['S3_BUCKET']}.s3-#{ENV['AWS_REGION']}.amazonaws.com",
+      endpoint: host,
       region: ENV['AWS_REGION'],
       access_key: ENV['AWS_ACCESS_KEY_ID'],
       bucket_name: ENV['S3_BUCKET'],
-      max_file_size: ENV['MAX_FILE_SIZE']
+      max_file_size: ENV['MAX_FILE_SIZE'],
+      firebase: {
+        api_key: ENV['FIREBASE_API_KEY'],
+        database_url: ENV['FIREBASE_URL']
+      }
     }
   end
 
   post :success do
     puts params.to_hash.inspect
+    firebase = Firebase::Client.new("https://clock-camera-dev.firebaseio.com/", ENV['FIREBASE_SECRET'])
+    response = firebase.push("images", params.to_hash.merge(created_at: Time.now))
   end
 
   post :signature do
