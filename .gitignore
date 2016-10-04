@@ -1,0 +1,4 @@
+npm-debug.log
+.env
+.byebug_history
+node_modules/
