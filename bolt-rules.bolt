@@ -1,0 +1,24 @@
+path /images/{user_id} {
+  read() { isCurrentUser($user_id) }
+  write() { isCurrentUser($user_id) }
+}
+
+path /images/{user_id}/{image_id} is Image {
+}
+
+path /images/{user_id}/{image_id}/creator {
+  validate() { createOnly(this) }
+}
+
+type Image {
+  creator: String,
+  bucket: String,
+  created_at: String,
+  key: String,
+  time: Number | Null
+}
+
+loggedIn() { auth != null }
+isCurrentUser(uid) { loggedIn() && auth.uid == uid }
+updatedByCreator(uid) { this.creator == uid }
+createOnly(value) { prior(value) == null && value != null }

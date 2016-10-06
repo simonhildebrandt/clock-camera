@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "images": {
+      "$user_id": {
+        ".read": "auth != null && auth.uid == $user_id",
+        ".write": "auth != null && auth.uid == $user_id",
+        "$image_id": {
+          ".validate": "newData.hasChildren(['creator', 'bucket', 'created_at', 'key'])",
+          "creator": {
+            ".validate": "newData.isString() && (data.val() == null && newData.val() != null)"
+          },
+          "bucket": {
+            ".validate": "newData.isString()"
+          },
+          "created_at": {
+            ".validate": "newData.isString()"
+          },
+          "key": {
+            ".validate": "newData.isString()"
+          },
+          "time": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": "false"
+          }
+        }
+      }
+    }
+  }
+}
