@@ -14,6 +14,28 @@ class S3Tools < Grape::API
     def host
       "#{ENV['S3_BUCKET']}.s3-#{ENV['AWS_REGION']}.amazonaws.com"
     end
+
+    def valid_user?
+      !!current_user
+    end
+
+    def current_user
+      user_token, auth_details = decode_user_token
+      require 'ostruct'
+      OpenStruct.new(user_token)
+    end
+
+    def decode_user_token
+      token = headers['User-Token']
+      require 'jwt'
+      header, payload, signature, signing_input = JWT::decoded_segments(token)
+      kid, alg = header['kid'], header['alg']
+      require 'open-uri'
+      require 'json'
+      certs = JSON.parse(open('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com').read)
+      x509 = OpenSSL::X509::Certificate.new(certs[kid])
+      JWT.decode(token, x509.public_key, true, { algorithm: alg, verify_iat: true })
+    end
   end
 
   get :config do
@@ -25,20 +47,22 @@ class S3Tools < Grape::API
       max_file_size: ENV['MAX_FILE_SIZE'],
       firebase: {
         api_key: ENV['FIREBASE_API_KEY'],
-        database_url: ENV['FIREBASE_URL']
+        database_url: ENV['FIREBASE_URL'],
+        auth_domain: ENV['FIREBASE_AUTH_DOMAIN']
       }
     }
   end
 
   post :success do
-    puts params.to_hash.inspect
     firebase = Firebase::Client.new("https://clock-camera-dev.firebaseio.com/", ENV['FIREBASE_SECRET'])
-    response = firebase.push("images", params.to_hash.merge(created_at: Time.now))
+    attrs = {created_at: Time.now, creator: current_user.user_id, bucket: params[:bucket], key: params[:key]}
+    response = firebase.push("images/#{current_user.user_id}", attrs)
   end
 
   post :signature do
+    error!('invalid user') unless valid_user?
     aws_secret_key = ENV['AWS_SECRET_ACCESS_KEY']
-    puts params.to_hash.inspect
+
     policy_data = { expiration: params[:expiration] }
     conditions = params[:conditions].inject({}) do |hash, clause|
       if clause.is_a? Array
@@ -62,7 +86,6 @@ class S3Tools < Grape::API
         { key => value }
       end
     end
-    puts policy_data.inspect
     policy_document = JSON.dump(policy_data)
     hashed_policy = Base64.encode64(policy_document).gsub("\n","")
 
