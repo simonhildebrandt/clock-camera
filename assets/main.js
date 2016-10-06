@@ -40,14 +40,15 @@ class Uploader extends React.Component {
 
   render() {
     if(!this.state.user) {
-      return null
+      return <a href="#" onClick={() => { this.startLogin() }}>Login</a>
+    } else {
+      return <div>
+        <a href="#" onClick={() => { this.signOut() }}>Sign Out</a>
+        { this.addClock() }
+        <input type="file" accept="image/*" />
+        { this.images() }
+      </div>
     }
-    return <div>
-      <a href="#" onClick={(event) => { this.signOut() }}>Sign Out</a>
-      { this.addClock() }
-      <input type="file" accept="image/*" />
-      { this.images() }
-    </div>
   }
 
   signOut() {
@@ -81,6 +82,30 @@ class Uploader extends React.Component {
     return 'images/' + this.state.user.uid
   }
 
+  startLogin() {
+    var provider = new firebase.auth.GoogleAuthProvider()
+    this.firebase.auth().signInWithPopup(provider).then(function(result) {
+      // This gives you a Google Access Token. You can use it to access the Google API.
+      var token = result.credential.accessToken;
+      // The signed-in user info.
+      var user = result.user;
+      // ...
+    }).catch(function(error) {
+      console.log('errors?')
+      console.log(error)
+      // Handle Errors here.
+      var errorCode = error.code;
+      var errorMessage = error.message;
+      // The email of the user's account used.
+      var email = error.email;
+      // The firebase.auth.AuthCredential type that was used.
+      var credential = error.credential;
+      // ...
+
+      alert("Sorry, login didn't succeed.")
+    })
+  }
+
   initFirebase() {
     this.firebase = firebase.initializeApp({
       apiKey: this.config.firebase.api_key,
@@ -109,25 +134,7 @@ class Uploader extends React.Component {
 
       } else {
         console.log('no user')
-        var provider = new firebase.auth.GoogleAuthProvider()
-        this.firebase.auth().signInWithPopup(provider).then(function(result) {
-          // This gives you a Google Access Token. You can use it to access the Google API.
-          var token = result.credential.accessToken;
-          // The signed-in user info.
-          var user = result.user;
-          // ...
-        }).catch(function(error) {
-          console.log('errors?')
-          console.log(error)
-          // Handle Errors here.
-          var errorCode = error.code;
-          var errorMessage = error.message;
-          // The email of the user's account used.
-          var email = error.email;
-          // The firebase.auth.AuthCredential type that was used.
-          var credential = error.credential;
-          // ...
-        })
+        this.startLogin()
       }
     })
 
