@@ -1,12 +1,8 @@
 source 'http://rubygems.org'
 
-gem 'aws-sdk', '~> 2'
 gem 'grape'
-gem 'warden'
-gem 'byebug'
 gem 'rack'
 gem 'unicorn'
 gem 'dotenv'
-gem 'mongoid'
 gem 'firebase'
 gem 'jwt'
