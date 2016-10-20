@@ -8,9 +8,120 @@ import "firebase/auth"
 import React from 'react'
 import ReactDOM from 'react-dom'
 
+import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
+import getMuiTheme from 'material-ui/styles/getMuiTheme'
+import {blueGrey700} from 'material-ui/styles/colors'
+
 import Image from './image'
 import Clock from './clock'
+import Navigation from './navigation'
 
+import InjectTap from 'react-tap-event-plugin'
+InjectTap()
+
+
+class Chassis extends React.Component {
+  constructor() {
+    super()
+
+    this.state = { images: {} }
+    $.get('/s3/config').done(data => {
+      this.setState({config: data}, () => {
+        this.setState({firebase: this.buildFirebase()}, () => {
+          this.state.firebase.auth().onAuthStateChanged(user => this.authStateChanged(user))
+        })
+      })
+    })
+  }
+
+  authStateChanged(user) {
+    console.log('authStateChanged')
+    if (user) {
+      if (!this.state.user_token) {
+        this.state.firebase.auth().currentUser.getToken(false).then((idToken) => {
+          this.setState({user_token: idToken, user: user})
+        }).catch(function(error) {
+          console.log(error)
+          console.log("Error getting user token")
+        })
+      }
+    } else {
+      this.setState({user: null, user_token: null})
+      console.log('no user')
+    }
+  }
+
+  signOut() {
+    this.state.firebase.auth().signOut()
+  }
+
+  startLogin() {
+    let provider = new firebase.auth.GoogleAuthProvider()
+    this.state.firebase.auth().signInWithPopup(provider).catch((error) => {
+      console.log('errors?')
+      console.log(error)
+      alert("Sorry, login didn't succeed.")
+    })
+  }
+
+  buildFirebase() {
+    let config = this.state.config.firebase
+
+    return firebase.initializeApp({
+      apiKey: config.api_key,
+      databaseURL: config.database_url,
+      authDomain: config.auth_domain,
+    })
+  }
+
+  getChildContext() {
+    return {
+      config: this.state.config,
+      firebase: this.state.firebase,
+      user: this.state.user
+    }
+  }
+
+  muiTheme() {
+    return getMuiTheme({
+      palette: {
+        primary1Color: blueGrey700
+      }
+    })
+  }
+
+  render() {
+    if (this.state.user) {
+      return <MuiThemeProvider muiTheme={this.muiTheme()}>
+        <div>
+          <Navigation
+            title={'ClockCamera'}
+            user={this.state.user}
+            handleLogout={ () => {this.signOut() }}
+          />
+          <div className="app-body">
+          </div>
+        </div>
+      </MuiThemeProvider>
+    } else {
+      return <a href="#" onClick={(event) => this.startLogin() }>Login</a>
+    }
+  }
+
+  image_path(image) {
+    return `https://s3-${this.state.config.region}.amazonaws.com/${this.state.config.bucket_name}/${image.key}`
+  }
+
+  user_image_path() {
+    return 'images/' + this.state.user.uid
+  }
+}
+
+Chassis.childContextTypes = {
+  user: React.PropTypes.object,
+  config: React.PropTypes.object,
+  firebase: React.PropTypes.object
+}
 
 class Uploader extends React.Component {
 
@@ -51,11 +162,6 @@ class Uploader extends React.Component {
     }
   }
 
-  signOut() {
-    this.setState({user: null})
-    this.firebase.auth().signOut()
-  }
-
   updateImage(key, attrs) {
     var imageRef = this.firebase.database().ref(`${this.user_image_path()}/${key}`)
     imageRef.update(attrs)
@@ -80,64 +186,6 @@ class Uploader extends React.Component {
 
   user_image_path() {
     return 'images/' + this.state.user.uid
-  }
-
-  startLogin() {
-    var provider = new firebase.auth.GoogleAuthProvider()
-    this.firebase.auth().signInWithPopup(provider).then(function(result) {
-      // This gives you a Google Access Token. You can use it to access the Google API.
-      var token = result.credential.accessToken;
-      // The signed-in user info.
-      var user = result.user;
-      // ...
-    }).catch(function(error) {
-      console.log('errors?')
-      console.log(error)
-      // Handle Errors here.
-      var errorCode = error.code;
-      var errorMessage = error.message;
-      // The email of the user's account used.
-      var email = error.email;
-      // The firebase.auth.AuthCredential type that was used.
-      var credential = error.credential;
-      // ...
-
-      alert("Sorry, login didn't succeed.")
-    })
-  }
-
-  initFirebase() {
-    this.firebase = firebase.initializeApp({
-      apiKey: this.config.firebase.api_key,
-      databaseURL: this.config.firebase.database_url,
-      authDomain: this.config.firebase.auth_domain,
-    })
-
-
-    this.firebase.auth().onAuthStateChanged((user) => {
-      if (user) {
-        console.log('got user')
-        console.log(user)
-        this.setState({user: user})
-        this.firebase.auth().currentUser.getToken(/* forceRefresh */ true).then((idToken) => {
-          this.setState({user_token: idToken})
-        }).catch(function(error) {
-          console.log("Error getting user token")
-        });
-
-        console.log(this.user_image_path())
-        var imagesRef = this.firebase.database().ref(this.user_image_path())
-        imagesRef.on('value', (snapshot) => {
-          console.log(snapshot)
-          this.setState({images: snapshot.val() || {}})
-        })
-
-      } else {
-        console.log('no user')
-        this.startLogin()
-      }
-    })
-
   }
 
   buildDropZone() {
@@ -201,4 +249,5 @@ class Uploader extends React.Component {
   }
 }
 
-ReactDOM.render(<Uploader/>, $('#content').get(0))
+//ReactDOM.render(<Uploader/>, $('#content').get(0))
+ReactDOM.render(<Chassis/>, $('#content').get(0))
