@@ -26,6 +26,27 @@
           }
         }
       }
+    },
+    "clocks": {
+      "$user_id": {
+        ".read": "auth != null && auth.uid == $user_id",
+        ".write": "auth != null && auth.uid == $user_id",
+        "$clock_id": {
+          ".validate": "newData.hasChildren(['creator', 'variation'])",
+          "name": {
+            ".validate": "newData.isString()"
+          },
+          "creator": {
+            ".validate": "newData.isString()"
+          },
+          "variation": {
+            ".validate": "newData.isString()"
+          },
+          "$other": {
+            ".validate": "false"
+          }
+        }
+      }
     }
   }
 }

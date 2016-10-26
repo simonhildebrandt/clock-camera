@@ -42,6 +42,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "watchify assets/main.js -o public/media/main.js -p browserify-notify --debug",
+    "styles": "node-sass -w assets/styles.scss public/media/styles.css",
     "rules": "echo 'bolt-rules.bolt' | entr firebase-bolt bolt-rules.bolt"
   },
   "author": "simonhildebrandt@gmail.com",

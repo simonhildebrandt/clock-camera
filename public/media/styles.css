@@ -1,0 +1,36 @@
+html, body {
+  padding: 0;
+  margin: 0; }
+
+div.clock-small {
+  width: 16em;
+  height: 16em;
+  display: inline-block;
+  margin-left: 1em;
+  margin-top: 1em;
+  overflow: hidden;
+  position: relative; }
+  div.clock-small .bar {
+    padding: 1em 1.2em;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    overflow: hidden;
+    position: absolute;
+    left: 0;
+    right: 0; }
+  div.clock-small .header {
+    font-size: 0.9em; }
+  div.clock-small .footer {
+    font-size: 0.8em;
+    bottom: 0; }
+    div.clock-small .footer .type {
+      background: url(clocks.svg) no-repeat;
+      height: 52px;
+      width: 54px; }
+      div.clock-small .footer .type.digital-twelve {
+        background-position: 0 10px; }
+      div.clock-small .footer .type.analog-twelve {
+        background-position: 0 -42px; }
+    div.clock-small .footer .rightly {
+      position: absolute;
+      right: 1.2em; }

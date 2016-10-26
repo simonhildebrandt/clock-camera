@@ -11,9 +11,11 @@ import ReactDOM from 'react-dom'
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
 import getMuiTheme from 'material-ui/styles/getMuiTheme'
 import {blueGrey700} from 'material-ui/styles/colors'
+import FloatingActionButton from 'material-ui/FloatingActionButton'
+import ContentAdd from 'material-ui/svg-icons/content/add'
 
 import Image from './image'
-import Clock from './clock'
+import { Clocks, Clock } from './clock'
 import Navigation from './navigation'
 
 import InjectTap from 'react-tap-event-plugin'
@@ -24,7 +26,7 @@ class Chassis extends React.Component {
   constructor() {
     super()
 
-    this.state = { images: {} }
+    this.state = { images: {}, clocks: {}, loading_user: true }
     $.get('/s3/config').done(data => {
       this.setState({config: data}, () => {
         this.setState({firebase: this.buildFirebase()}, () => {
@@ -34,21 +36,42 @@ class Chassis extends React.Component {
     })
   }
 
+  user_clock_path() {
+    return `clocks/${this.state.user.uid}`
+  }
+
+  authed() {
+    this.clocksRef = this.state.firebase.database().ref(this.user_clock_path())
+    this.clocksRef.on('value', (snapshot) => {
+      this.setState({clocks: snapshot.val() || {}})
+    })
+  }
+
+  unauthed() {
+    this.clocksRef.off()
+  }
+
   authStateChanged(user) {
     console.log('authStateChanged')
     if (user) {
       if (!this.state.user_token) {
         this.state.firebase.auth().currentUser.getToken(false).then((idToken) => {
-          this.setState({user_token: idToken, user: user})
+          this.setState({user_token: idToken, user: user}, () => {
+            this.authed()
+          })
         }).catch(function(error) {
           console.log(error)
           console.log("Error getting user token")
         })
       }
     } else {
+      if (this.state.user) {
+        this.unauthed()
+      }
       this.setState({user: null, user_token: null})
       console.log('no user')
     }
+    this.setState({loading_user: false})
   }
 
   signOut() {
@@ -90,21 +113,40 @@ class Chassis extends React.Component {
     })
   }
 
+  createClock() {
+    this.clocksRef.push({creator: this.state.user.uid, variation: 'digital-twelve'})
+  }
+
   render() {
-    if (this.state.user) {
+    if (this.state.loading_user) {
+      return <div>Loading</div>
+    } else if (this.state.user) {
       return <MuiThemeProvider muiTheme={this.muiTheme()}>
-        <div>
+        <div className="page">
           <Navigation
             title={'ClockCamera'}
             user={this.state.user}
             handleLogout={ () => {this.signOut() }}
           />
           <div className="app-body">
+            <Clocks clocks={this.state.clocks} />
+            <FloatingActionButton
+              onTouchTap={ () => { this.createClock() } }
+              style={ {
+                margin: 0,
+                top: 'auto',
+                right: 20,
+                bottom: 20,
+                left: 'auto',
+                position: 'fixed',
+              }
+            }><ContentAdd />
+            </FloatingActionButton>
           </div>
         </div>
       </MuiThemeProvider>
     } else {
-      return <a href="#" onClick={(event) => this.startLogin() }>Login</a>
+      return <a href="#" onClick={(event) => this.startLogin() }>Google Login</a>
     }
   }
 

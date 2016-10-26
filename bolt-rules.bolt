@@ -3,11 +3,25 @@ path /images/{user_id} {
   write() { isCurrentUser($user_id) }
 }
 
+path /clocks/{user_id} {
+  read() { isCurrentUser($user_id) }
+  write() { isCurrentUser($user_id) }
+}
+
 path /images/{user_id}/{image_id} is Image {
+}
+
+path /clocks/{user_id}/{clock_id} is Clock {
 }
 
 path /images/{user_id}/{image_id}/creator {
   validate() { createOnly(this) }
+}
+
+type Clock {
+  name: String | Null,
+  creator: String
+  variation: String
 }
 
 type Image {
