@@ -3,27 +3,38 @@ html, body {
   margin: 0;
 }
 
+// html, body, #content, .page, .app-body, div.clocks {
+//   height: 100%;
+// }
+
+div.clocks {
+  position: relative;
+}
+
 div.clock-small {
-  width: 16em;
-  height: 16em;
   display: inline-block;
   margin-left: 1em;
   margin-top: 1em;
   overflow: hidden;
   position: relative;
+  width: 16em;
+  height: 16em;
 
   .bar {
     padding: 1em 1.2em;
     background-color: rgba(0, 0, 0, 0.5);
     color: white;
     overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     position: absolute;
     left: 0;
     right: 0;
   }
 
   .header {
-    font-size: 0.9em;
+    font-size: 1.4em;
+    font-family: "Roboto Slab";
   }
 
   .footer {

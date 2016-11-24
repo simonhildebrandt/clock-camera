@@ -1,6 +1,6 @@
 import qq from 'fine-uploader/lib/s3'
 import $ from 'jquery'
-
+import Rx from 'rxjs'
 import firebase from "firebase/app"
 import "firebase/database"
 import "firebase/auth"
@@ -11,11 +11,11 @@ import ReactDOM from 'react-dom'
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
 import getMuiTheme from 'material-ui/styles/getMuiTheme'
 import {blueGrey700} from 'material-ui/styles/colors'
-import FloatingActionButton from 'material-ui/FloatingActionButton'
-import ContentAdd from 'material-ui/svg-icons/content/add'
+import Dialog from 'material-ui/Dialog'
+
 
 import Image from './image'
-import { Clocks, Clock } from './clock'
+import { Clocks } from './clocks'
 import Navigation from './navigation'
 
 import InjectTap from 'react-tap-event-plugin'
@@ -26,70 +26,76 @@ class Chassis extends React.Component {
   constructor() {
     super()
 
-    this.state = { images: {}, clocks: {}, loading_user: true }
-    $.get('/s3/config').done(data => {
-      this.setState({config: data}, () => {
-        this.setState({firebase: this.buildFirebase()}, () => {
-          this.state.firebase.auth().onAuthStateChanged(user => this.authStateChanged(user))
-        })
+    this.initialize()
+    this.state = { loading_user: true }
+  }
+
+  initialize() {
+    this.config$ = new Rx.Subject()
+    this.firebase$ = new Rx.Subject()
+    this.user$ = new Rx.Subject()
+    this.authed$ = new Rx.ReplaySubject(1)
+    this.firebase$.combineLatest(this.user$, (firebase, user) => { return { firebase, user } } ).subscribe(this.authed$)
+
+    this.loginLink$ = new Rx.Subject()
+    this.logoutLink$ = new Rx.Subject()
+    this.loginClick$ = this.firebase$.combineLatest(this.loginLink$).subscribe((data) => {
+      let [fbase, loginlink] = data
+      let provider = new firebase.auth.GoogleAuthProvider()
+      fbase.auth().signInWithPopup(provider).catch((error) => {
+        console.log('errors?')
+        console.log(error)
+        alert("Sorry, login didn't succeed.")
       })
     })
-  }
 
-  user_clock_path() {
-    return `clocks/${this.state.user.uid}`
-  }
+    this.logoutClick$ = this.authed$.combineLatest(this.logoutLink$).subscribe((data) => {
+      let { firebase, user } = data[0]
+      firebase.auth().signOut()
+    })
 
-  authed() {
-    this.clocksRef = this.state.firebase.database().ref(this.user_clock_path())
-    this.clocksRef.on('value', (snapshot) => {
-      this.setState({clocks: snapshot.val() || {}})
+    $.get('/app/config').done((data) => {
+      this.config$.next(data)
+      let fb = this.buildFirebase(data.firebase)
+      fb.auth().onAuthStateChanged(
+        user => this.authStateChanged(fb, user)
+      )
+      this.firebase$.next(fb)
     })
   }
 
-  unauthed() {
-    this.clocksRef.off()
-  }
-
-  authStateChanged(user) {
+  authStateChanged(firebase, user) {
     console.log('authStateChanged')
     if (user) {
       if (!this.state.user_token) {
-        this.state.firebase.auth().currentUser.getToken(false).then((idToken) => {
-          this.setState({user_token: idToken, user: user}, () => {
-            this.authed()
-          })
-        }).catch(function(error) {
-          console.log(error)
-          console.log("Error getting user token")
-        })
+        firebase.auth().currentUser.getToken(false).then((idToken) => {
+          this.setState({user_token: idToken, user: user})
+          this.user$.next(user)
+        }
+        // ).catch(function(error) {
+        //     console.log(error)
+        //     console.log("Error getting user token")
+        //   }
+        )
       }
     } else {
-      if (this.state.user) {
-        this.unauthed()
-      }
       this.setState({user: null, user_token: null})
+      this.user$.next(null)
       console.log('no user')
     }
     this.setState({loading_user: false})
   }
 
   signOut() {
-    this.state.firebase.auth().signOut()
+    this.logoutLink$.next()
   }
 
   startLogin() {
-    let provider = new firebase.auth.GoogleAuthProvider()
-    this.state.firebase.auth().signInWithPopup(provider).catch((error) => {
-      console.log('errors?')
-      console.log(error)
-      alert("Sorry, login didn't succeed.")
-    })
+    console.log('here')
+    this.loginLink$.next()
   }
 
-  buildFirebase() {
-    let config = this.state.config.firebase
-
+  buildFirebase(config) {
     return firebase.initializeApp({
       apiKey: config.api_key,
       databaseURL: config.database_url,
@@ -99,9 +105,9 @@ class Chassis extends React.Component {
 
   getChildContext() {
     return {
-      config: this.state.config,
-      firebase: this.state.firebase,
-      user: this.state.user
+      user$: this.user$,
+      firebase$: this.firebase$,
+      authed$: this.authed$
     }
   }
 
@@ -111,10 +117,6 @@ class Chassis extends React.Component {
         primary1Color: blueGrey700
       }
     })
-  }
-
-  createClock() {
-    this.clocksRef.push({creator: this.state.user.uid, variation: 'digital-twelve'})
   }
 
   render() {
@@ -129,19 +131,8 @@ class Chassis extends React.Component {
             handleLogout={ () => {this.signOut() }}
           />
           <div className="app-body">
-            <Clocks clocks={this.state.clocks} />
-            <FloatingActionButton
-              onTouchTap={ () => { this.createClock() } }
-              style={ {
-                margin: 0,
-                top: 'auto',
-                right: 20,
-                bottom: 20,
-                left: 'auto',
-                position: 'fixed',
-              }
-            }><ContentAdd />
-            </FloatingActionButton>
+            <Dialog open={false} />
+            <Clocks />
           </div>
         </div>
       </MuiThemeProvider>
@@ -160,9 +151,9 @@ class Chassis extends React.Component {
 }
 
 Chassis.childContextTypes = {
-  user: React.PropTypes.object,
-  config: React.PropTypes.object,
-  firebase: React.PropTypes.object
+  user$: React.PropTypes.object,
+  firebase$: React.PropTypes.object,
+  authed$: React.PropTypes.object
 }
 
 class Uploader extends React.Component {
@@ -226,8 +217,8 @@ class Uploader extends React.Component {
     return `https://s3-${this.config.region}.amazonaws.com/${this.config.bucket_name}/${image.key}`
   }
 
-  user_image_path() {
-    return 'images/' + this.state.user.uid
+  user_image_path(user) {
+    return 'images/' + user.uid
   }
 
   buildDropZone() {
@@ -272,11 +263,11 @@ class Uploader extends React.Component {
           accessKey: this.config.access_key
       },
       signature: {
-          endpoint: '/s3/signature',
+          endpoint: '/app/s3/signature',
           customHeaders: () => { return this.getTokenHeaders() }
       },
       uploadSuccess: {
-          endpoint: '/s3/success',
+          endpoint: '/app/s3/success',
           customHeaders: () => { return this.getTokenHeaders() }
       },
       validation: {

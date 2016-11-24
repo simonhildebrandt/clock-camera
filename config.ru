@@ -8,7 +8,7 @@ Dotenv.load
 
 class S3Tools < Grape::API
   format :json
-  prefix :s3
+  prefix :app
 
   helpers do
     def host
@@ -40,11 +40,13 @@ class S3Tools < Grape::API
 
   get :config do
     {
+      s3: {
       endpoint: host,
       region: ENV['AWS_REGION'],
       access_key: ENV['AWS_ACCESS_KEY_ID'],
       bucket_name: ENV['S3_BUCKET'],
       max_file_size: ENV['MAX_FILE_SIZE'],
+      },
       firebase: {
         api_key: ENV['FIREBASE_API_KEY'],
         database_url: ENV['FIREBASE_URL'],
@@ -53,13 +55,13 @@ class S3Tools < Grape::API
     }
   end
 
-  post :success do
+  post 's3/success' do
     firebase = Firebase::Client.new("https://clock-camera-dev.firebaseio.com/", ENV['FIREBASE_SECRET'])
     attrs = {created_at: Time.now, creator: current_user.user_id, bucket: params[:bucket], key: params[:key]}
     response = firebase.push("images/#{current_user.user_id}", attrs)
   end
 
-  post :signature do
+  post 's3/signature' do
     error!('invalid user') unless valid_user?
     aws_secret_key = ENV['AWS_SECRET_ACCESS_KEY']
 

@@ -22,7 +22,7 @@ class Navigation extends React.Component {
   }
 
   username() {
-    return this.context.user.displayName
+    return this.props.user.displayName
   }
 
   userMenu () {
@@ -74,6 +74,7 @@ class Navigation extends React.Component {
     return <div>
       <AppBar
         title={this.props.title}
+        titleStyle={ {fontFamily: "Neuton", fontSize: 36} }
         iconElementLeft={this.sideDrawer()}
         iconElementRight={this.userMenu()} />
       <Popover
@@ -107,7 +108,7 @@ class Navigation extends React.Component {
 }
 
 Navigation.contextTypes = {
-  user: React.PropTypes.object
+  user$: React.PropTypes.object
 }
 
 export default Navigation
