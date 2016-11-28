@@ -1,3 +1,4 @@
+import Navigo from 'navigo'
 import qq from 'fine-uploader/lib/s3'
 import $ from 'jquery'
 import Rx from 'rxjs'
@@ -13,7 +14,6 @@ import getMuiTheme from 'material-ui/styles/getMuiTheme'
 import {blueGrey700} from 'material-ui/styles/colors'
 import Dialog from 'material-ui/Dialog'
 
-
 import Image from './image'
 import { Clocks } from './clocks'
 import Navigation from './navigation'
@@ -27,10 +27,12 @@ class Chassis extends React.Component {
     super()
 
     this.initialize()
-    this.state = { loading_user: true }
+    this.state = { loading_user: true, clock_id: null }
   }
 
   initialize() {
+    this.router = new Navigo(null, false)
+
     this.config$ = new Rx.Subject()
     this.firebase$ = new Rx.Subject()
     this.user$ = new Rx.Subject()
@@ -62,6 +64,14 @@ class Chassis extends React.Component {
       )
       this.firebase$.next(fb)
     })
+  }
+
+  onComponentMount() {
+    this.router.on({
+      '/clocks/:id': (params) => { this.setState({clock_id: params.id}) },
+      '/clocks/': (params) => { this.setState({clock_id: null}) },
+      '/': (params) => { this.setState({clock_id: null}) }
+    }).resolve()
   }
 
   authStateChanged(firebase, user) {
@@ -132,7 +142,7 @@ class Chassis extends React.Component {
           />
           <div className="app-body">
             <Dialog open={false} />
-            <Clocks />
+            <Clocks chooseClock={ (key) => this.chooseClock(key) } clock_id={this.state.clock_id} />
           </div>
         </div>
       </MuiThemeProvider>
@@ -147,6 +157,11 @@ class Chassis extends React.Component {
 
   user_image_path() {
     return 'images/' + this.state.user.uid
+  }
+
+  chooseClock(key) {
+    this.router.navigate(key == null ? '/' : `/clocks/${key}`)
+    this.setState({clock_id: key})
   }
 }
 

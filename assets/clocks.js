@@ -6,8 +6,9 @@ import BackIcon from 'material-ui/svg-icons/navigation/arrow-back'
 import IconButton from 'material-ui/IconButton'
 import FloatingActionButton from 'material-ui/FloatingActionButton'
 import ContentAdd from 'material-ui/svg-icons/content/add'
+import TextField from 'material-ui/TextField'
 
-import $ from 'jquery'
+//import $ from 'jquery'
 
 
 class Clocks extends React.Component {
@@ -31,15 +32,15 @@ class Clocks extends React.Component {
   render_clock(key) {
     let clock = this.state.clocks[key]
     return <Clock
-      selected={key == this.state.clock_id}
+      selected={key == this.props.clock_id}
       key={key} id={key} clock={clock}
-      chooseClock={ (key) => { this.chooseClock(key) } }
+      chooseClock={ (key) => { this.props.chooseClock(key) } }
     />
   }
 
   render() {
-    if (this.state.clock_id) {
-      return this.render_clock(this.state.clock_id)
+    if (this.props.clock_id) {
+      return this.render_clock(this.props.clock_id)
     } else {
       return <div className="clocks">
         { this.render_clocks() }
@@ -58,17 +59,9 @@ class Clocks extends React.Component {
       position: 'fixed',
     }
 
-    return <FloatingActionButton onTouchTap={ () => { this.onCreateClock() } } style={style}>
+    return <FloatingActionButton onTouchTap={ () => { this.create$.next() } } style={style}>
       <ContentAdd />
     </FloatingActionButton>
-  }
-
-  onCreateClock() {
-    this.create$.next()
-  }
-
-  chooseClock(key) {
-    this.setState({clock_id: key})
   }
 
   user_clock_path(user) {
@@ -92,17 +85,21 @@ class Clocks extends React.Component {
 }
 
 class Clock extends React.Component {
-  constructor(props) {
+  constructor(props, context) {
     super(props)
 
     this.state = {images: {}}
+
+    this.title$ = new Rx.Subject()
+    this.authed$ = context.authed$
+    this.authed$.combineLatest(this.title$).subscribe((data) => { let [{firebase, user}, event] = data; console.log(event.target.value) })
   }
 
   key() { return this.props.id }
 
   clock() { return this.props.clock }
 
-  name() { return this.clock().name || '[unnamed]' }
+  safe_name() { return this.clock().name || '[unnamed]' }
 
   render() {
     return this.props.selected ? this.render_large() : this.render_small()
@@ -117,7 +114,7 @@ class Clock extends React.Component {
     >
       <div>
         <div className="header bar">
-          {this.name()}
+          {this.safe_name()}
         </div>
 
         <div className="footer bar">
@@ -131,13 +128,17 @@ class Clock extends React.Component {
   render_large() {
     return <div>
       <IconButton onTouchTap={ () => this.props.chooseClock(null) }><BackIcon/></IconButton>
-      {this.name()}
+      <TextField hintText="Clock name" value={this.clock().name} onChange={ (x) => { console.log(this.title$); this.title$.next(x) } } />
     </div>
   }
 }
 
 
 Clocks.contextTypes = {
+  authed$: React.PropTypes.object
+}
+
+Clock.contextTypes = {
   authed$: React.PropTypes.object
 }
 
