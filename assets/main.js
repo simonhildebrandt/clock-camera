@@ -1,7 +1,6 @@
 import Navigo from 'navigo'
 import qq from 'fine-uploader/lib/s3'
 import $ from 'jquery'
-import Rx from 'rxjs'
 import firebase from "firebase/app"
 import "firebase/database"
 import "firebase/auth"
@@ -31,42 +30,26 @@ class Chassis extends React.Component {
   }
 
   initialize() {
-    this.router = new Navigo(null, false)
+    this.router = new Navigo(null, true)
 
-    this.config$ = new Rx.Subject()
-    this.firebase$ = new Rx.Subject()
-    this.user$ = new Rx.Subject()
-    this.authed$ = new Rx.ReplaySubject(1)
-    this.firebase$.combineLatest(this.user$, (firebase, user) => { return { firebase, user } } ).subscribe(this.authed$)
-
-    this.loginLink$ = new Rx.Subject()
-    this.logoutLink$ = new Rx.Subject()
-    this.loginClick$ = this.firebase$.combineLatest(this.loginLink$).subscribe((data) => {
-      let [fbase, loginlink] = data
-      let provider = new firebase.auth.GoogleAuthProvider()
-      fbase.auth().signInWithPopup(provider).catch((error) => {
-        console.log('errors?')
-        console.log(error)
-        alert("Sorry, login didn't succeed.")
-      })
-    })
-
-    this.logoutClick$ = this.authed$.combineLatest(this.logoutLink$).subscribe((data) => {
-      let { firebase, user } = data[0]
-      firebase.auth().signOut()
-    })
+    // Logout
+    // ((data) => {
+    //   let { firebase, user } = data[0]
+    //   firebase.auth().signOut()
+    // })
 
     $.get('/app/config').done((data) => {
-      this.config$.next(data)
-      let fb = this.buildFirebase(data.firebase)
-      fb.auth().onAuthStateChanged(
-        user => this.authStateChanged(fb, user)
-      )
-      this.firebase$.next(fb)
+      this.setState({config: data}, () => {
+        this.setState({firebase: this.buildFirebase()}, () => {
+          this.state.firebase.auth().onAuthStateChanged(
+            user => this.authStateChanged(user)
+          )
+        })
+      })
     })
   }
 
-  onComponentMount() {
+  componentDidMount() {
     this.router.on({
       '/clocks/:id': (params) => { this.setState({clock_id: params.id}) },
       '/clocks/': (params) => { this.setState({clock_id: null}) },
@@ -74,13 +57,12 @@ class Chassis extends React.Component {
     }).resolve()
   }
 
-  authStateChanged(firebase, user) {
+  authStateChanged(user) {
     console.log('authStateChanged')
     if (user) {
       if (!this.state.user_token) {
-        firebase.auth().currentUser.getToken(false).then((idToken) => {
+        this.state.firebase.auth().currentUser.getToken(false).then((idToken) => {
           this.setState({user_token: idToken, user: user})
-          this.user$.next(user)
         }
         // ).catch(function(error) {
         //     console.log(error)
@@ -90,34 +72,35 @@ class Chassis extends React.Component {
       }
     } else {
       this.setState({user: null, user_token: null})
-      this.user$.next(null)
       console.log('no user')
     }
     this.setState({loading_user: false})
   }
 
   signOut() {
-    this.logoutLink$.next()
   }
 
   startLogin() {
-    console.log('here')
-    this.loginLink$.next()
+    let provider = new firebase.auth.GoogleAuthProvider()
+    this.state.firebase.auth().signInWithPopup(provider).catch((error) => {
+      console.log('errors?')
+      console.log(error)
+      alert("Sorry, login didn't succeed.")
+    })
   }
 
-  buildFirebase(config) {
+  buildFirebase() {
     return firebase.initializeApp({
-      apiKey: config.api_key,
-      databaseURL: config.database_url,
-      authDomain: config.auth_domain,
+      apiKey: this.state.config.firebase.api_key,
+      databaseURL: this.state.config.firebase.database_url,
+      authDomain: this.state.config.firebase.auth_domain,
     })
   }
 
   getChildContext() {
     return {
-      user$: this.user$,
-      firebase$: this.firebase$,
-      authed$: this.authed$
+      user: this.state.user,
+      firebase: this.state.firebase
     }
   }
 
@@ -132,7 +115,7 @@ class Chassis extends React.Component {
   render() {
     if (this.state.loading_user) {
       return <div>Loading</div>
-    } else if (this.state.user) {
+    } else if (this.state.user && this.state.firebase) {
       return <MuiThemeProvider muiTheme={this.muiTheme()}>
         <div className="page">
           <Navigation
@@ -166,9 +149,8 @@ class Chassis extends React.Component {
 }
 
 Chassis.childContextTypes = {
-  user$: React.PropTypes.object,
-  firebase$: React.PropTypes.object,
-  authed$: React.PropTypes.object
+  user: React.PropTypes.object,
+  firebase: React.PropTypes.object,
 }
 
 class Uploader extends React.Component {

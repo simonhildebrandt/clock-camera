@@ -1,5 +1,4 @@
 import React from 'react'
-import Rx from 'rxjs'
 
 import Paper from 'material-ui/Paper'
 import BackIcon from 'material-ui/svg-icons/navigation/arrow-back'
@@ -8,19 +7,20 @@ import FloatingActionButton from 'material-ui/FloatingActionButton'
 import ContentAdd from 'material-ui/svg-icons/content/add'
 import TextField from 'material-ui/TextField'
 
-//import $ from 'jquery'
 
 
 class Clocks extends React.Component {
   constructor(props, context) {
     super(props)
 
-    this.state = {clocks: {}}
+    this.user = context.user
+    this.firebase = context.firebase
 
-    this.create$ = new Rx.Subject()
-    this.authed$ = context.authed$
-    this.authed$.subscribe( (data) => { let {firebase, user} = data; this.getClocks(firebase, user) } )
-    this.authed$.combineLatest(this.create$).subscribe((data) => { let {firebase, user} = data[0]; this.createClock(user) })
+    this.state = {clocks: {}}
+  }
+
+  componentDidMount() {
+    this.getClocks()
   }
 
   render_clocks() {
@@ -64,16 +64,16 @@ class Clocks extends React.Component {
     </FloatingActionButton>
   }
 
-  user_clock_path(user) {
-    return `clocks/${user.uid}`
+  user_clock_path() {
+    return `clocks/${this.user.uid}`
   }
 
-  createClock(user) {
-    this.clocksRef.push({creator: user.uid, variation: 'digital-twelve'})
+  createClock() {
+    this.clocksRef.push({creator: this.user.uid, variation: 'digital-twelve'})
   }
 
-  getClocks(firebase, user) {
-    this.clocksRef = firebase.database().ref(this.user_clock_path(user))
+  getClocks() {
+    this.clocksRef = this.firebase.database().ref(this.user_clock_path(this.user))
     this.clocksRef.on('value', (snapshot) => {
       this.setState({clocks: snapshot.val() || {}})
     })
@@ -89,10 +89,6 @@ class Clock extends React.Component {
     super(props)
 
     this.state = {images: {}}
-
-    this.title$ = new Rx.Subject()
-    this.authed$ = context.authed$
-    this.authed$.combineLatest(this.title$).subscribe((data) => { let [{firebase, user}, event] = data; console.log(event.target.value) })
   }
 
   key() { return this.props.id }
@@ -135,11 +131,13 @@ class Clock extends React.Component {
 
 
 Clocks.contextTypes = {
-  authed$: React.PropTypes.object
+  user: React.PropTypes.object,
+  firebase: React.PropTypes.object
 }
 
 Clock.contextTypes = {
-  authed$: React.PropTypes.object
+  user: React.PropTypes.object,
+  firebase: React.PropTypes.object
 }
 
 
