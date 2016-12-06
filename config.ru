@@ -5,6 +5,7 @@ require 'firebase'
 require 'dotenv'
 Dotenv.load
 
+require_relative './image_job'
 
 class S3Tools < Grape::API
   format :json
@@ -56,9 +57,11 @@ class S3Tools < Grape::API
   end
 
   post 's3/success' do
-    firebase = Firebase::Client.new("https://clock-camera-dev.firebaseio.com/", ENV['FIREBASE_SECRET'])
+    firebase = Firebase::Client.new(ENV['FIREBASE_URL'], ENV['FIREBASE_SECRET'])
     attrs = {created_at: Time.now, creator: current_user.user_id, bucket: params[:bucket], key: params[:key]}
     response = firebase.push("images/#{current_user.user_id}", attrs)
+    require 'byebug'; byebug
+    ImageJob.perform_async({user: current_user.user_id, fb_id: response.body['id'], image: response.body})
   end
 
   post 's3/signature' do

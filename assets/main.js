@@ -100,7 +100,8 @@ class Chassis extends React.Component {
   getChildContext() {
     return {
       user: this.state.user,
-      firebase: this.state.firebase
+      firebase: this.state.firebase,
+      image_path: (image, size) => this.image_path(image, size)
     }
   }
 
@@ -134,8 +135,10 @@ class Chassis extends React.Component {
     }
   }
 
-  image_path(image) {
-    return `https://s3-${this.state.config.region}.amazonaws.com/${this.state.config.bucket_name}/${image.key}`
+  image_path(image, size) {
+    console.log(image, size)
+    let variation = size ? image.variations[size].path : image.key
+    return `https://s3-${this.state.config.s3.region}.amazonaws.com/${this.state.config.s3.bucket_name}/${variation}`
   }
 
   user_image_path() {
@@ -151,6 +154,7 @@ class Chassis extends React.Component {
 Chassis.childContextTypes = {
   user: React.PropTypes.object,
   firebase: React.PropTypes.object,
+  image_path: React.PropTypes.func
 }
 
 class Uploader extends React.Component {
@@ -174,7 +178,7 @@ class Uploader extends React.Component {
       return <Clock
         firebase={this.firebase}
         user_image_path={this.user_image_path()}
-        image_path={(image) => { return this.image_path(image)} }
+        image_path={(image, size) => { return this.image_path(image, size)} }
       />
     }
   }

@@ -1,6 +1,7 @@
 path /images/{user_id} {
   read() { isCurrentUser($user_id) }
   write() { isCurrentUser($user_id) }
+  index() { ["clock"] }
 }
 
 path /clocks/{user_id} {
@@ -14,14 +15,11 @@ path /images/{user_id}/{image_id} is Image {
 path /clocks/{user_id}/{clock_id} is Clock {
 }
 
-path /images/{user_id}/{image_id}/creator {
-  validate() { createOnly(this) }
-}
-
 type Clock {
+  validate() { this.name.isString() || ( data.val() == null && this.creator.isString() && this.variation.isString() ) }
   name: String | Null,
-  creator: String
-  variation: String
+  creator: String | Null
+  variation: String | Null
 }
 
 type Image {
@@ -30,9 +28,9 @@ type Image {
   created_at: String,
   key: String,
   time: Number | Null
+  clock: String | Null // Validate against clocks
 }
 
 loggedIn() { auth != null }
 isCurrentUser(uid) { loggedIn() && auth.uid == uid }
 updatedByCreator(uid) { this.creator == uid }
-createOnly(value) { prior(value) == null && value != null }

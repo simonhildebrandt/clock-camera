@@ -8,6 +8,9 @@ import ContentAdd from 'material-ui/svg-icons/content/add'
 import TextField from 'material-ui/TextField'
 
 
+function pluralise(number, text) {
+  return number + ' ' + (number == 1 ? text : text + 's')
+}
 
 class Clocks extends React.Component {
   constructor(props, context) {
@@ -16,11 +19,18 @@ class Clocks extends React.Component {
     this.user = context.user
     this.firebase = context.firebase
 
-    this.state = {clocks: {}}
+    this.state = {clocks: null}
+    this.clocksRef = this.firebase.database().ref(this.user_clock_path(this.user))
   }
 
   componentDidMount() {
-    this.getClocks()
+    this.clocksRef.on('value', (snapshot) => {
+      this.setState({clocks: snapshot.val() || {}})
+    })
+  }
+
+  componentWillUnmount() {
+    this.clocksRef.off()
   }
 
   render_clocks() {
@@ -35,17 +45,22 @@ class Clocks extends React.Component {
       selected={key == this.props.clock_id}
       key={key} id={key} clock={clock}
       chooseClock={ (key) => { this.props.chooseClock(key) } }
+      changeName={ (id, x) => this.changeName(id, x) }
     />
   }
 
   render() {
-    if (this.props.clock_id) {
-      return this.render_clock(this.props.clock_id)
+    if (this.state.clocks === null) {
+      return <div>Loading clocks</div>
     } else {
-      return <div className="clocks">
-        { this.render_clocks() }
-        { this.add_clock_button() }
-      </div>
+      if (this.props.clock_id) {
+        return this.render_clock(this.props.clock_id)
+      } else {
+        return <div className="clocks">
+          { this.render_clocks() }
+          { this.add_clock_button() }
+        </div>
+      }
     }
   }
 
@@ -59,7 +74,7 @@ class Clocks extends React.Component {
       position: 'fixed',
     }
 
-    return <FloatingActionButton onTouchTap={ () => { this.create$.next() } } style={style}>
+    return <FloatingActionButton onTouchTap={ () => { this.createClock() } } style={style}>
       <ContentAdd />
     </FloatingActionButton>
   }
@@ -72,15 +87,8 @@ class Clocks extends React.Component {
     this.clocksRef.push({creator: this.user.uid, variation: 'digital-twelve'})
   }
 
-  getClocks() {
-    this.clocksRef = this.firebase.database().ref(this.user_clock_path(this.user))
-    this.clocksRef.on('value', (snapshot) => {
-      this.setState({clocks: snapshot.val() || {}})
-    })
-  }
-
-  dropClocks() {
-    this.clocksRef.off()
+  changeName(id, name) {
+    this.clocksRef.child(id).set({name: name})
   }
 }
 
@@ -88,7 +96,25 @@ class Clock extends React.Component {
   constructor(props, context) {
     super(props)
 
-    this.state = {images: {}}
+    this.user = context.user
+    this.firebase = context.firebase
+    this.image_path = context.image_path
+    this.state = {images: {}, name: this.clock().name}
+  }
+
+  componentDidMount() {
+    this.imagesRef = this.firebase.database().ref(this.user_image_path())
+    this.imagesRef.orderByChild('clock').equalTo(this.key()).on('value', (snapshot) => {
+      this.setState({images: snapshot.val() || {}})
+    })
+  }
+
+  componentWillUnmount() {
+    this.imagesRef.off()
+  }
+
+  user_image_path() {
+    return `images/${this.user.uid}`
   }
 
   key() { return this.props.id }
@@ -96,6 +122,11 @@ class Clock extends React.Component {
   clock() { return this.props.clock }
 
   safe_name() { return this.clock().name || '[unnamed]' }
+
+  changeName(key, name) {
+    this.setState({name: name})
+    this.props.changeName(key, name)
+  }
 
   render() {
     return this.props.selected ? this.render_large() : this.render_small()
@@ -114,7 +145,7 @@ class Clock extends React.Component {
         </div>
 
         <div className="footer bar">
-          <div className="rightly">[count] images</div>
+          <div className="rightly">{ pluralise(Object.keys(this.state.images).length, 'image') }</div>
           <div className={ 'type ' + (this.clock().variation || 'digital-twelve') }/>
         </div>
       </div>
@@ -124,20 +155,32 @@ class Clock extends React.Component {
   render_large() {
     return <div>
       <IconButton onTouchTap={ () => this.props.chooseClock(null) }><BackIcon/></IconButton>
-      <TextField hintText="Clock name" value={this.clock().name} onChange={ (x) => { console.log(this.title$); this.title$.next(x) } } />
+      <TextField hintText="Clock name" value={this.state.name} onChange={ (event) => { this.changeName(this.key(), event.target.value) } } />
+      <div>
+        { this.render_images() }
+      </div>
     </div>
+  }
+
+  render_images() {
+    console.log(this.state.images)
+    return Object.keys(this.state.images).map((key) => {
+      let img = this.state.images[key]
+      return <img key={key} src={this.image_path(img, 256)} />
+    })
   }
 }
 
 
 Clocks.contextTypes = {
-  user: React.PropTypes.object,
-  firebase: React.PropTypes.object
+  user: React.PropTypes.object.isRequired,
+  firebase: React.PropTypes.object.isRequired
 }
 
 Clock.contextTypes = {
-  user: React.PropTypes.object,
-  firebase: React.PropTypes.object
+  user: React.PropTypes.object.isRequired,
+  firebase: React.PropTypes.object.isRequired,
+  image_path: React.PropTypes.func.isRequired
 }
 
 

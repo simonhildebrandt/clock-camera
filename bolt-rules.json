@@ -4,10 +4,13 @@
       "$user_id": {
         ".read": "auth != null && auth.uid == $user_id",
         ".write": "auth != null && auth.uid == $user_id",
+        ".indexOn": [
+          "clock"
+        ],
         "$image_id": {
           ".validate": "newData.hasChildren(['creator', 'bucket', 'created_at', 'key'])",
           "creator": {
-            ".validate": "newData.isString() && (data.val() == null && newData.val() != null)"
+            ".validate": "newData.isString()"
           },
           "bucket": {
             ".validate": "newData.isString()"
@@ -21,6 +24,9 @@
           "time": {
             ".validate": "newData.isNumber()"
           },
+          "clock": {
+            ".validate": "newData.isString()"
+          },
           "$other": {
             ".validate": "false"
           }
@@ -32,7 +38,7 @@
         ".read": "auth != null && auth.uid == $user_id",
         ".write": "auth != null && auth.uid == $user_id",
         "$clock_id": {
-          ".validate": "newData.hasChildren(['creator', 'variation'])",
+          ".validate": "newData.hasChildren() && (newData.child('name').isString() || data.val() == null && newData.child('creator').isString() && newData.child('variation').isString())",
           "name": {
             ".validate": "newData.isString()"
           },
