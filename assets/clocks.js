@@ -132,6 +132,21 @@ class Clock extends React.Component {
     return this.props.selected ? this.render_large() : this.render_small()
   }
 
+  first_image() {
+    let first_key = Object.keys(this.state.images)[0]
+    if (first_key) {
+      return this.state.images[first_key]
+    }
+  }
+
+  background() {
+    if (this.first_image()) {
+      return this.image_path(this.first_image(), 256)
+    } else {
+      return 'https://placeholdit.imgix.net/~text?txtsize=33&txt=256x256&w=256&h=256'
+    }
+  }
+
   render_small() {
     return <Paper
       key={this.key()}
@@ -139,7 +154,7 @@ class Clock extends React.Component {
       zDepth={2}
       onTouchTap={ () => this.props.chooseClock(this.key()) }
     >
-      <div>
+      <div style={ { backgroundImage: 'url(' + this.background() + ')' } } >
         <div className="header bar">
           {this.safe_name()}
         </div>

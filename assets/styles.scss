@@ -20,6 +20,12 @@ div.clock-small {
   width: 16em;
   height: 16em;
 
+  & > div {
+    height: 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
   .bar {
     padding: 1em 1.2em;
     background-color: rgba(0, 0, 0, 0.5);
